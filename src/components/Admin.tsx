@@ -3,17 +3,51 @@ import { Plus, Pencil, Trash2, Check, X, Calendar, Clock, MapPin, ToggleLeft, To
 import { useCourseDates } from '../context/CourseDateContext';
 import { CourseDate } from '../types';
 
+// 15分刻みの時間オプションを生成
+const timeOptions: string[] = [];
+for (let h = 0; h < 24; h++) {
+  for (let m = 0; m < 60; m += 15) {
+    timeOptions.push(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`);
+  }
+}
+
+// 日付をYYYY年M月D日（曜日）形式に変換
+const formatDateToJapanese = (dateStr: string): string => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  const days = ['日', '月', '火', '水', '木', '金', '土'];
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const dayOfWeek = days[date.getDay()];
+  return `${year}年${month}月${day}日（${dayOfWeek}）`;
+};
+
+// 日本語日付をYYYY-MM-DD形式に変換（カレンダー用）
+const parseJapaneseDateToISO = (japaneseDate: string): string => {
+  const match = japaneseDate.match(/(\d+)年(\d+)月(\d+)日/);
+  if (!match) return '';
+  const [, year, month, day] = match;
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+};
+
 export default function Admin() {
   const { courseDates, isLoading, error, addCourseDate, updateCourseDate, deleteCourseDate, refreshCourses } = useCourseDates();
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ date: '', time: '', venue: '', isActive: true });
+  const [formData, setFormData] = useState({ date: '', time: '10:00', venue: '', isActive: true });
   const [isSaving, setIsSaving] = useState(false);
 
   const resetForm = () => {
-    setFormData({ date: '', time: '', venue: '', isActive: true });
+    setFormData({ date: '', time: '10:00', venue: '', isActive: true });
     setIsAdding(false);
     setEditingId(null);
+  };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const isoDate = e.target.value;
+    const japaneseDate = formatDateToJapanese(isoDate);
+    setFormData({ ...formData, date: japaneseDate });
   };
 
   const handleAdd = async () => {
@@ -123,25 +157,29 @@ export default function Admin() {
                   日付
                 </label>
                 <input
-                  type="text"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  placeholder="2026年4月5日（土）"
+                  type="date"
+                  value={parseJapaneseDateToISO(formData.date)}
+                  onChange={handleDateChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
                 />
+                {formData.date && (
+                  <p className="text-xs text-gray-500 mt-1">{formData.date}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   <Clock size={14} className="inline mr-1" />
                   時間
                 </label>
-                <input
-                  type="text"
+                <select
                   value={formData.time}
                   onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                  placeholder="10:00"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
-                />
+                >
+                  {timeOptions.map((time) => (
+                    <option key={time} value={time}>{time}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -196,20 +234,26 @@ export default function Admin() {
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">日付</label>
                           <input
-                            type="text"
-                            value={formData.date}
-                            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                            type="date"
+                            value={parseJapaneseDateToISO(formData.date)}
+                            onChange={handleDateChange}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
                           />
+                          {formData.date && (
+                            <p className="text-xs text-gray-500 mt-1">{formData.date}</p>
+                          )}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">時間</label>
-                          <input
-                            type="text"
+                          <select
                             value={formData.time}
                             onChange={(e) => setFormData({ ...formData, time: e.target.value })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent outline-none"
-                          />
+                          >
+                            {timeOptions.map((time) => (
+                              <option key={time} value={time}>{time}</option>
+                            ))}
+                          </select>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">会場</label>
