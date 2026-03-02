@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, ChevronRight } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Loader2 } from 'lucide-react';
 import { useCourseDates } from '../context/CourseDateContext';
 import { FormData } from '../types';
 
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyXKe4Df3eRWaV6q6esAa6RUXdtK4i_IfRWQJNUgVlBRzJfzi7ukj84onVUWbJOoFJOYQ/exec';
 
 export default function ApplicationForm() {
-  const { getActiveDates } = useCourseDates();
+  const { getActiveDates, isLoading } = useCourseDates();
   const activeDates = getActiveDates();
 
   const formatDateOption = (course: { date: string; time: string; venue: string }) => {
@@ -110,6 +110,17 @@ export default function ApplicationForm() {
           >
             トップページへ戻る
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 size={40} className="animate-spin text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-500">読み込み中...</p>
         </div>
       </div>
     );

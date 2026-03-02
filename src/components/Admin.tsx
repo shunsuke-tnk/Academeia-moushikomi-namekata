@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { Plus, Pencil, Trash2, Check, X, Calendar, Clock, MapPin, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, Check, X, Calendar, Clock, MapPin, ToggleLeft, ToggleRight, Loader2, RefreshCw } from 'lucide-react';
 import { useCourseDates } from '../context/CourseDateContext';
 import { CourseDate } from '../types';
 
 export default function Admin() {
-  const { courseDates, addCourseDate, updateCourseDate, deleteCourseDate } = useCourseDates();
+  const { courseDates, isLoading, error, addCourseDate, updateCourseDate, deleteCourseDate, refreshCourses } = useCourseDates();
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ date: '', time: '', venue: '', isActive: true });
+  const [isSaving, setIsSaving] = useState(false);
 
   const resetForm = () => {
     setFormData({ date: '', time: '', venue: '', isActive: true });
@@ -15,10 +16,15 @@ export default function Admin() {
     setEditingId(null);
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!formData.date || !formData.time || !formData.venue) return;
-    addCourseDate(formData);
-    resetForm();
+    setIsSaving(true);
+    try {
+      await addCourseDate(formData);
+      resetForm();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleEdit = (course: CourseDate) => {
@@ -31,40 +37,75 @@ export default function Admin() {
     });
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editingId || !formData.date || !formData.time || !formData.venue) return;
-    updateCourseDate(editingId, formData);
-    resetForm();
-  };
-
-  const handleDelete = (id: string) => {
-    if (window.confirm('この講座日程を削除しますか？')) {
-      deleteCourseDate(id);
+    setIsSaving(true);
+    try {
+      await updateCourseDate(editingId, formData);
+      resetForm();
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const toggleActive = (id: string, currentState: boolean) => {
-    updateCourseDate(id, { isActive: !currentState });
+  const handleDelete = async (id: string) => {
+    if (window.confirm('この講座日程を削除しますか？')) {
+      await deleteCourseDate(id);
+    }
+  };
+
+  const toggleActive = async (id: string, currentState: boolean) => {
+    await updateCourseDate(id, { isActive: !currentState });
   };
 
   const formatDisplayDate = (course: CourseDate) => {
     return `${course.date} ${course.time}【${course.venue}】`;
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 size={40} className="animate-spin text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-500">読み込み中...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 py-8 px-4 font-sans">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">講座日程 管理コンソール</h1>
-          <p className="text-gray-500 text-sm">申込フォームに表示される講座日程を管理します</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">講座日程 管理コンソール</h1>
+              <p className="text-gray-500 text-sm">申込フォームに表示される講座日程を管理します</p>
+            </div>
+            <button
+              onClick={() => refreshCourses()}
+              className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+              title="再読み込み"
+            >
+              <RefreshCw size={20} />
+            </button>
+          </div>
         </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-medium border border-red-100 mb-6">
+            {error}
+          </div>
+        )}
 
         {/* Add Button */}
         {!isAdding && !editingId && (
           <button
             onClick={() => setIsAdding(true)}
-            className="w-full mb-6 py-4 px-6 bg-gray-900 text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors"
+            disabled={isSaving}
+            className="w-full mb-6 py-4 px-6 bg-gray-900 text-white rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors disabled:bg-gray-400"
           >
             <Plus size={20} />
             新しい講座日程を追加
