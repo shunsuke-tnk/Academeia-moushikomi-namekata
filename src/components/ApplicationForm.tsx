@@ -122,12 +122,12 @@ export default function ApplicationForm() {
         {/* Header */}
         <div className="bg-gray-900 px-8 py-12 text-white text-center">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-4">
-            【外壁・屋根メンテナンス講座】<br className="sm:hidden" />申込フォーム
+            【屋根・外壁メンテナンス講座】<br />申込フォーム
           </h1>
           <p className="text-gray-300 text-sm leading-relaxed max-w-lg mx-auto">
             以下のフォームにご入力ください。<br />
-            なお、ご入力いただいた個人情報は一切外部への流用はいたしませんのでご安心ください。<br />
-            <span className="text-gray-400 text-xs mt-3 block">（このフォームでは、すべての回答者からのメールが自動的に収集されます。）</span>
+            なお、ご入力いただいた個人情報は一切外部への流用は致しませんので<br />
+            ご安心ください。
           </p>
         </div>
 
