@@ -3,6 +3,23 @@ import { CourseDate } from '../types';
 
 const API_URL = '/api/courses';
 
+// 日本語日付（YYYY年M月D日）をDateオブジェクトに変換
+const parseJapaneseDate = (dateStr: string): Date => {
+  const match = dateStr.match(/(\d+)年(\d+)月(\d+)日/);
+  if (!match) return new Date(0);
+  const [, year, month, day] = match;
+  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+};
+
+// 講座日程を日付順（若い順）にソート
+const sortCoursesByDate = (courses: CourseDate[]): CourseDate[] => {
+  return [...courses].sort((a, b) => {
+    const dateA = parseJapaneseDate(a.date);
+    const dateB = parseJapaneseDate(b.date);
+    return dateA.getTime() - dateB.getTime();
+  });
+};
+
 type CourseDateContextType = {
   courseDates: CourseDate[];
   isLoading: boolean;
@@ -28,7 +45,7 @@ export function CourseDateProvider({ children }: { children: ReactNode }) {
       const response = await fetch(API_URL);
       if (!response.ok) throw new Error('Failed to fetch courses');
       const data = await response.json();
-      setCourseDates(data);
+      setCourseDates(sortCoursesByDate(data));
     } catch (err) {
       setError('講座データの取得に失敗しました');
       console.error('Fetch error:', err);
@@ -51,7 +68,7 @@ export function CourseDateProvider({ children }: { children: ReactNode }) {
       });
       if (!response.ok) throw new Error('Failed to add course');
       const newCourse = await response.json();
-      setCourseDates(prev => [...prev, newCourse]);
+      setCourseDates(prev => sortCoursesByDate([...prev, newCourse]));
     } catch (err) {
       setError('講座の追加に失敗しました');
       console.error('Add error:', err);
@@ -70,7 +87,7 @@ export function CourseDateProvider({ children }: { children: ReactNode }) {
       if (!response.ok) throw new Error('Failed to update course');
       const updatedCourse = await response.json();
       setCourseDates(prev =>
-        prev.map(date => (date.id === id ? updatedCourse : date))
+        sortCoursesByDate(prev.map(date => (date.id === id ? updatedCourse : date)))
       );
     } catch (err) {
       setError('講座の更新に失敗しました');
