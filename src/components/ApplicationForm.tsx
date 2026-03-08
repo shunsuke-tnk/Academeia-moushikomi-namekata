@@ -5,6 +5,39 @@ import { FormData } from '../types';
 
 const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyXKe4Df3eRWaV6q6esAa6RUXdtK4i_IfRWQJNUgVlBRzJfzi7ukj84onVUWbJOoFJOYQ/exec';
 
+/**
+ * 数字のみの電話番号文字列にハイフンを自動挿入する。
+ * 例: "09012345678" → "090-1234-5678"
+ *     "0312345678"  → "03-1234-5678"
+ * すでにハイフンが含まれている場合はそのまま返す。
+ */
+function formatPhoneNumber(phone: string): string {
+  // すでにハイフンが含まれている場合はそのまま返す
+  if (phone.includes('-')) {
+    return phone;
+  }
+
+  const digits = phone.replace(/[^0-9]/g, '');
+
+  // 携帯電話 (090, 080, 070, 050): 3-4-4
+  if (/^0[5789]0/.test(digits) && digits.length === 11) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  }
+  // 固定電話（市外局番2桁: 03, 06など）: 2-4-4
+  if (/^0[3-6]/.test(digits) && digits.length === 10) {
+    return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  // 固定電話（市外局番3桁）: 3-3-4 or 3-4-4
+  if (digits.length === 10) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  if (digits.length === 11) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  }
+  // フォーマットできない場合はそのまま
+  return phone;
+}
+
 export default function ApplicationForm() {
   const { getActiveDates, isLoading } = useCourseDates();
   const activeDates = getActiveDates();
@@ -40,6 +73,13 @@ export default function ApplicationForm() {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
 
+    // 電話番号フィールドは数字とハイフンのみ許可
+    if (name === 'phone') {
+      const sanitized = value.replace(/[^0-9\-]/g, '');
+      setFormData(prev => ({ ...prev, phone: sanitized }));
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
@@ -55,8 +95,10 @@ export default function ApplicationForm() {
       return;
     }
 
-    if (!formData.phone.includes('-')) {
-      setError('電話番号はハイフンを含めて入力してください。');
+    // 電話番号の桁数チェック（ハイフンを除いた数字が10〜11桁）
+    const phoneDigits = formData.phone.replace(/[^0-9]/g, '');
+    if (phoneDigits.length < 10 || phoneDigits.length > 11) {
+      setError('電話番号を正しく入力してください。');
       return;
     }
 
@@ -69,13 +111,19 @@ export default function ApplicationForm() {
         return;
       }
 
+      // 送信データの電話番号を自動フォーマット（ハイフン付き）
+      const submitData = {
+        ...formData,
+        phone: formatPhoneNumber(formData.phone),
+      };
+
       await fetch(GOOGLE_SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(submitData)
       });
 
       setIsSubmitted(true);
@@ -183,11 +231,10 @@ export default function ApplicationForm() {
                   return (
                     <label
                       key={course.id}
-                      className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${
-                        formData.date === dateOption
+                      className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${formData.date === dateOption
                           ? 'border-gray-900 bg-gray-50/50'
                           : 'border-gray-200 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
                       <input
                         type="radio"
@@ -248,16 +295,16 @@ export default function ApplicationForm() {
             <label className="block text-sm font-bold text-gray-900">
               4. 電話番号を教えてください <span className="text-red-500 ml-1">*</span>
             </label>
-            <p className="text-xs text-gray-500">※必ずハイフンをつけてください。講座の中止・変更等の緊急連絡を行う場合がございます。</p>
+            <p className="text-xs text-gray-500">※ハイフンあり・なしどちらでもOKです。講座の中止・変更等の緊急連絡を行う場合がございます。</p>
             <input
-              type="tel"
+              type="text"
+              inputMode="tel"
               name="phone"
               required
-              pattern="[0-9]{2,4}-[0-9]{2,4}-[0-9]{3,4}"
               value={formData.phone}
               onChange={handleChange}
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all outline-none text-gray-900 bg-gray-50/50 focus:bg-white"
-              placeholder="090-1234-5678"
+              placeholder="09012345678"
             />
           </div>
 
@@ -266,7 +313,7 @@ export default function ApplicationForm() {
             <label className="block text-sm font-bold text-gray-900">
               5. チラシに記載されている申込番号をご入力ください <span className="text-red-500 ml-1">*</span>
             </label>
-            <p className="text-xs text-gray-500">※チラシに記載されている5桁または8桁の番号</p>
+            <p className="text-xs text-gray-500">※チラシの申込欄に記載されている5桁の番号</p>
             <input
               type="text"
               name="applicationNumber"
@@ -363,11 +410,10 @@ export default function ApplicationForm() {
             <button
               type="submit"
               disabled={isSubmitting || activeDates.length === 0}
-              className={`w-full py-4 px-6 rounded-xl text-white font-bold text-lg transition-all flex items-center justify-center ${
-                isSubmitting || activeDates.length === 0
+              className={`w-full py-4 px-6 rounded-xl text-white font-bold text-lg transition-all flex items-center justify-center ${isSubmitting || activeDates.length === 0
                   ? 'bg-gray-400 cursor-not-allowed'
                   : 'bg-gray-900 hover:bg-gray-800 shadow-md hover:shadow-lg transform hover:-translate-y-0.5'
-              }`}
+                }`}
             >
               {isSubmitting ? (
                 <span className="flex items-center">
